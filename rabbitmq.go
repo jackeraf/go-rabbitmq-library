@@ -13,10 +13,10 @@ import (
 
 // RabbitMqClient .
 type RabbitMqClient interface {
-	CreateQueue(queue string)
-	CreateQueues(queues []string)
-	Publish(queue string, message string)
-	Consume(queue string)
+	CreateQueue(queue string) error
+	CreateQueues(queues []string) error
+	Publish(queue string, message string) error
+	Consume(queue string) error
 }
 
 // Rabbitmq .
@@ -26,49 +26,56 @@ type Rabbitmq struct {
 }
 
 // NewRabbitmqClient .
-func NewRabbitmqClient() RabbitMqClient {
+func NewRabbitmqClient() (RabbitMqClient, error) {
 	err := godotenv.Load()
 	if err != nil {
-		failOnError(err, "Error loading .env file")
+		return nil, errors.New("Error loading .env file")
 	}
 
 	username := os.Getenv("USERNAME")
 	if username == "" {
-		failOnError(errors.New(""), "Failed to get username env variable")
+		return nil, errors.New("Failed to get username env variable")
 	}
 	password := os.Getenv("PASSWORD")
 	if password == "" {
-		failOnError(errors.New(""), "Failed to get password env variable")
+		return nil, errors.New("Failed to get password env variable")
 	}
 	url := os.Getenv("URL")
 	if url == "" {
-		failOnError(errors.New(""), "Failed to get url env variable")
+		return nil, errors.New("Failed to get url env variable")
 	}
 	port := os.Getenv("PORT")
 	if port == "" {
-		failOnError(errors.New(""), "Failed to get port env variable")
+		return nil, errors.New("Failed to get port env variable")
 	}
 
 	conn, err := amqp.Dial(fmt.Sprintf("amqp://%v:%v@%v:%v/", username, password, url, port))
-	failOnError(err, "Failed to connect to RabbitMQ")
-
+	if err != nil {
+		return nil, errors.New("Failed to connect to RabbitMQ")
+	}
 	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
+	if err != nil {
+		return nil, errors.New("Failed to open a channel")
+	}
 	return &Rabbitmq{
 		connection: conn,
 		channel:    ch,
-	}
+	}, nil
 }
 
 // CreateQueues .
-func (rb *Rabbitmq) CreateQueues(queues []string) {
+func (rb *Rabbitmq) CreateQueues(queues []string) error {
 	for _, queue := range queues {
-		rb.CreateQueue(queue)
+		err := rb.CreateQueue(queue)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // CreateQueue .
-func (rb *Rabbitmq) CreateQueue(queue string) {
+func (rb *Rabbitmq) CreateQueue(queue string) error {
 	_, err := rb.channel.QueueDeclare(
 		queue, // name
 		false, // durable
@@ -77,7 +84,10 @@ func (rb *Rabbitmq) CreateQueue(queue string) {
 		false, // no-wait
 		nil,   // arguments
 	)
-	failOnError(err, "Failed to declare a queue")
+	if err != nil {
+		return errors.New("Failed to declare a queue")
+	}
+	return nil
 }
 
 // CloseConnection .
@@ -91,7 +101,7 @@ func (rb *Rabbitmq) CloseChannel() {
 }
 
 // Publish .
-func (rb *Rabbitmq) Publish(queue string, message string) {
+func (rb *Rabbitmq) Publish(queue string, message string) error {
 	err := rb.channel.Publish(
 		"",    // exchange
 		queue, // routing key
@@ -102,11 +112,14 @@ func (rb *Rabbitmq) Publish(queue string, message string) {
 			Body:        []byte(message),
 		})
 	log.Printf(" [x] Sent %s", message)
-	failOnError(err, "Failed to publish a message")
+	if err != nil {
+		return errors.New("Failed to publish a message")
+	}
+	return nil
 }
 
 // Consume .
-func (rb *Rabbitmq) Consume(queue string) {
+func (rb *Rabbitmq) Consume(queue string) error {
 	msgs, err := rb.channel.Consume(
 		queue, // queue
 		"",    // consumer
@@ -116,7 +129,9 @@ func (rb *Rabbitmq) Consume(queue string) {
 		false, // no-wait
 		nil,   // args
 	)
-	failOnError(err, "Failed to register a consumer")
+	if err != nil {
+		return errors.New("Failed to register a consumer")
+	}
 
 	forever := make(chan bool)
 
@@ -127,10 +142,5 @@ func (rb *Rabbitmq) Consume(queue string) {
 	}()
 
 	<-forever
-}
-
-func failOnError(err error, msg string) {
-	if err != nil {
-		log.Fatalf("%s: %s", msg, err)
-	}
+	return nil
 }
