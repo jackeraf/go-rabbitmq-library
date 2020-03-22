@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"rabbitmq/utils"
 
 	"github.com/joho/godotenv"
 
@@ -30,31 +29,31 @@ type Rabbitmq struct {
 func NewRabbitmqClient() RabbitMqClient {
 	err := godotenv.Load()
 	if err != nil {
-		utils.FailOnError(err, "Error loading .env file")
+		failOnError(err, "Error loading .env file")
 	}
 
 	username := os.Getenv("USERNAME")
 	if username == "" {
-		utils.FailOnError(errors.New(""), "Failed to get username env variable")
+		failOnError(errors.New(""), "Failed to get username env variable")
 	}
 	password := os.Getenv("PASSWORD")
 	if password == "" {
-		utils.FailOnError(errors.New(""), "Failed to get password env variable")
+		failOnError(errors.New(""), "Failed to get password env variable")
 	}
 	url := os.Getenv("URL")
 	if url == "" {
-		utils.FailOnError(errors.New(""), "Failed to get url env variable")
+		failOnError(errors.New(""), "Failed to get url env variable")
 	}
 	port := os.Getenv("PORT")
 	if port == "" {
-		utils.FailOnError(errors.New(""), "Failed to get port env variable")
+		failOnError(errors.New(""), "Failed to get port env variable")
 	}
 
 	conn, err := amqp.Dial(fmt.Sprintf("amqp://%v:%v@%v:%v/", username, password, url, port))
-	utils.FailOnError(err, "Failed to connect to RabbitMQ")
+	failOnError(err, "Failed to connect to RabbitMQ")
 
 	ch, err := conn.Channel()
-	utils.FailOnError(err, "Failed to open a channel")
+	failOnError(err, "Failed to open a channel")
 	return &Rabbitmq{
 		connection: conn,
 		channel:    ch,
@@ -78,7 +77,7 @@ func (rb *Rabbitmq) CreateQueue(queue string) {
 		false, // no-wait
 		nil,   // arguments
 	)
-	utils.FailOnError(err, "Failed to declare a queue")
+	failOnError(err, "Failed to declare a queue")
 }
 
 // CloseConnection .
@@ -103,7 +102,7 @@ func (rb *Rabbitmq) Publish(queue string, message string) {
 			Body:        []byte(message),
 		})
 	log.Printf(" [x] Sent %s", message)
-	utils.FailOnError(err, "Failed to publish a message")
+	failOnError(err, "Failed to publish a message")
 }
 
 // Consume .
@@ -117,7 +116,7 @@ func (rb *Rabbitmq) Consume(queue string) {
 		false, // no-wait
 		nil,   // args
 	)
-	utils.FailOnError(err, "Failed to register a consumer")
+	failOnError(err, "Failed to register a consumer")
 
 	forever := make(chan bool)
 
