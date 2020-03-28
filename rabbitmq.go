@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/joho/godotenv"
-
 	"github.com/streadway/amqp"
 )
 
@@ -27,12 +25,7 @@ type Rabbitmq struct {
 
 // NewRabbitmqClient .
 func NewRabbitmqClient() (RabbitMqClient, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return nil, errors.New("Error loading .env file")
-	}
-
-	username := os.Getenv("USERNAME")
+	username := os.Getenv("USER")
 	if username == "" {
 		return nil, errors.New("Failed to get username env variable")
 	}
@@ -48,7 +41,6 @@ func NewRabbitmqClient() (RabbitMqClient, error) {
 	if port == "" {
 		return nil, errors.New("Failed to get port env variable")
 	}
-
 	conn, err := amqp.Dial(fmt.Sprintf("amqp://%v:%v@%v:%v/", username, password, url, port))
 	if err != nil {
 		return nil, errors.New("Failed to connect to RabbitMQ")
