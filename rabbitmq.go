@@ -41,6 +41,7 @@ func NewRabbitmqClient() (RabbitMqClient, error) {
 	if port == "" {
 		return nil, errors.New("Failed to get port env variable")
 	}
+	fmt.Printf("connecting to amqp://%v:%v@%v:%v/", username, password, url, port)
 	conn, err := amqp.Dial(fmt.Sprintf("amqp://%v:%v@%v:%v/", username, password, url, port))
 	if err != nil {
 		return nil, errors.New("Failed to connect to RabbitMQ")
